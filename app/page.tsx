@@ -547,12 +547,17 @@ export default function Page() {
             </div>
             <div>
               <div className="text-[0.7rem] font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Kučerovy reálné náklady za {monthsToSell} měs.
+                Co Kučera dává do hry
               </div>
               <div className="space-y-0.5">
-                <Row label="Cash vyplacený Bronislavě" value={`${fmt(kf.cashOutOfPocket)} Kč`} color="text-amber-400" sub="Reálný výdaj — chce zpět z prodeje" />
-                <Row label={`Běžné náklady (${monthsToSell} × ${fmtK(kf.monthlyTotal)})`} value={`${fmt(kf.totalRunningCosts)} Kč`} color="text-amber-400" sub="Hypo splátky + energie + úrok z cashe" />
-                <Row label="Celkem Kučera investoval" value={`${fmt(kf.cashOutOfPocket + kf.totalRunningCosts)} Kč`} color="text-red-400" bold border sub="Z toho jistina hypotéky se vrátí přes nižší zůstatek při prodeji" />
+                <Row label="Hypotéka (přebírá úvěr)" value={`${fmt(MORTGAGE_BALANCE_KUCERA)} Kč`} color="text-amber-400" sub="Splatí se z prodeje — vrací se mu" />
+                <Row label="Cash vyplacený Bronislavě" value={`${fmt(kf.cashOutOfPocket)} Kč`} color="text-amber-400" sub="Z vlastní kapsy — chce zpět z prodeje" />
+                <Row label={`Splátky hypo za ${monthsToSell} měs.`} value={`${fmt(MORTGAGE_PAYMENT_KUCERA * monthsToSell)} Kč`} color="text-amber-400" sub={`Z toho jistina ${fmt(kf.totalPrincipal)} (snižuje zůstatek) + úroky ${fmt(kf.totalInterest)} (ztracené)`} />
+                <Row label={`Energie (${monthsToSell} × ${fmt(energy)})`} value={`${fmt(kf.energyCostTotal)} Kč`} color="text-amber-400" />
+                <Row label={`Úrok z cashe (${kuceraInterestRate} %, ${monthsToSell} měs.)`} value={`${fmt(kf.cashInterestTotal)} Kč`} color="text-amber-400" />
+                <Row label="Celkem Kučera investoval" value={`${fmt(MORTGAGE_BALANCE_KUCERA + kf.cashOutOfPocket + kf.totalRunningCosts)} Kč`} color="text-red-400" bold border />
+                <Row label="Z toho se vrátí z prodeje" value={`${fmt(MORTGAGE_BALANCE_KUCERA + kf.totalPrincipal)} Kč`} color="text-green-400" sub={`Hypo zůstatek ${fmt(kf.mortgageRemaining)} + splacená jistina ${fmt(kf.totalPrincipal)}`} />
+                <Row label="Z toho ztracené náklady" value={`${fmt(kf.totalInterest + kf.energyCostTotal + kf.cashInterestTotal)} Kč`} color="text-red-400" sub="Úroky bance + energie + úrok z cashe — chce kompenzovat" />
               </div>
             </div>
           </div>
