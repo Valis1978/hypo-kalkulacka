@@ -220,8 +220,8 @@ export default function Page() {
     const monthlyTotal =
       MORTGAGE_PAYMENT_KUCERA + energy + monthlyCashInterest;
 
-    /* "Total debt" — informational worst case */
-    const totalDebt = vlastimilShare + monthlyTotal * monthsToSell;
+    /* Kučera's total real running costs (what he actually pays out monthly) */
+    const totalRunningCosts = monthlyTotal * monthsToSell;
 
     /* Revenue */
     let houseRevenue: number,
@@ -284,7 +284,7 @@ export default function Page() {
       firstMonthPrincipal,
       monthlyCashInterest,
       monthlyTotal,
-      totalDebt,
+      totalRunningCosts,
       totalInterest,
       totalPrincipal,
       mortgageRemaining,
@@ -398,10 +398,12 @@ export default function Page() {
           </p>
           <p>
             <strong className="text-white">Vysvobození:</strong> Vlastimil si
-            stanoví fixní nárok (½ z dohodnuté ceny minus hypotéka), přenechá
-            prodej kompletně Bronislavě a od podpisu dohody nehradí žádné
-            náklady. Finanční produkty se vypořádají okamžitě. Fixní nárok z
-            domu dostane po prodeji.
+            stanoví fixní nárok (½ z dohodnuté ceny minus hypotéka) a přenechá
+            prodej kompletně Bronislavě. Od podpisu dohody nehradí žádné
+            náklady spojené s domem. Finanční produkty se vypořádají okamžitě
+            (každý svou polovinu). Svůj fixní nárok z domu Vlastimil obdrží
+            z výtěžku prodeje &mdash; vše nad jeho nárok je Bronislavy, ale
+            riziko nižší ceny nese ona.
           </p>
           <p className="text-[0.75rem] text-slate-500 border-t border-surface-700 pt-3">
             Všechny částky orientační. Zdroje: odhad RE/MAX Valuo (02/2026),
@@ -532,12 +534,12 @@ export default function Page() {
             </div>
             <div>
               <div className="text-[0.7rem] font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Po {monthsToSell} měsících
+                Kučerovy reálné náklady za {monthsToSell} měs.
               </div>
               <div className="space-y-0.5">
-                <Row label="Tvůj nevyplacený podíl" value={`${fmt(kf.vlastimilShare)} Kč`} color="text-amber-400" />
-                <Row label={`Naběhlé náklady (${monthsToSell} × ${fmtK(kf.monthlyTotal)})`} value={`${fmt(kf.monthlyTotal * monthsToSell)} Kč`} color="text-amber-400" />
-                <Row label="Celkový závazek vůči Kučerovi" value={`${fmt(kf.totalDebt)} Kč`} color="text-red-400" bold border sub="Informativní — worst case bez prodeje. Reálně se vypořádá z výtěžku prodeje." />
+                <Row label="Cash vyplacený Bronislavě" value={`${fmt(kf.cashOutOfPocket)} Kč`} color="text-amber-400" sub="Reálný výdaj — chce zpět z prodeje" />
+                <Row label={`Běžné náklady (${monthsToSell} × ${fmtK(kf.monthlyTotal)})`} value={`${fmt(kf.totalRunningCosts)} Kč`} color="text-amber-400" sub="Hypo splátky + energie + úrok z cashe" />
+                <Row label="Celkem Kučera investoval" value={`${fmt(kf.cashOutOfPocket + kf.totalRunningCosts)} Kč`} color="text-red-400" bold border sub="Z toho jistina hypotéky se vrátí přes nižší zůstatek při prodeji" />
               </div>
             </div>
           </div>
