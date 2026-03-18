@@ -405,6 +405,19 @@ export default function Page() {
             z výtěžku prodeje &mdash; vše nad jeho nárok je Bronislavy, ale
             riziko nižší ceny nese ona.
           </p>
+          <p>
+            <strong className="text-white">Časový rámec prodeje:</strong> Na
+            prodej v režii Bronislavy je stanovena lhůta{" "}
+            <strong>12 měsíců</strong> od podpisu dohody. Pokud v této lhůtě
+            nedojde k prodeji, je Bronislava povinna přistoupit k prodeji za
+            nejlepší aktuální nabídku, případně svěřit prodej RK s mandátem
+            prodat za tržní cenu v další lhůtě <strong>3 měsíců</strong>. Pokud
+            ani po 15 měsících nedojde k prodeji (žádná nabídka), bude
+            nemovitost prodána formou{" "}
+            <strong>veřejné dobrovolné dražby</strong> organizované nezávislým
+            dražebníkem, přičemž vyvolávací cena bude stanovena znaleckým
+            posudkem. Výtěžek se rozdělí dle dohody (fixní nárok + hypotéka).
+          </p>
           <p className="text-[0.75rem] text-slate-500 border-t border-surface-700 pt-3">
             Všechny částky orientační. Zdroje: odhad RE/MAX Valuo (02/2026),
             CenováMapa.cz, zpráva DEKPROJEKT (07/2025), přípisy AK Švecová a AK
