@@ -160,16 +160,16 @@ export default function Page() {
 
   /* ─── STATE: kučera flip ─── */
   const [buyPrice, setBuyPrice] = useState(8_000_000);
-  const [houseAsIs, setHouseAsIs] = useState(6_500_000);
-  const [plotSplit, setPlotSplit] = useState(true);
-  const [plotPriceM2, setPlotPriceM2] = useState(2_000);
-  const [plotSize, setPlotSize] = useState(1_600);
   const [houseAsIsNoSplit, setHouseAsIsNoSplit] = useState(7_500_000);
   const [monthsToSell, setMonthsToSell] = useState(9);
   const [kuceraInterestRate, setKuceraInterestRate] = useState(5);
   const [kuceraProfit, setKuceraProfit] = useState(10);
   const [rkPct, setRkPct] = useState(4);
-  const [plotPrep, setPlotPrep] = useState(300_000);
+
+  /* ─── STATE: court scenario ─── */
+  const [courtHouseValue, setCourtHouseValue] = useState(6_000_000);
+  const [courtMonths, setCourtMonths] = useState(30);
+  const [courtLawyerMonthly, setCourtLawyerMonthly] = useState(8_000);
 
   /* ─── CALC: vysvobození ─── */
   const vClaim = Math.max(
@@ -179,17 +179,11 @@ export default function Page() {
   const vProducts = PRODUCTS_HALF;
   const vTotal = vClaim + vProducts;
 
-  const vBronislava9 =
-    9_000_000 - MORTGAGE_BALANCE_SJM - vClaim + PRODUCTS_HALF;
-  const vBronislava12 =
-    12_000_000 - MORTGAGE_BALANCE_SJM - vClaim + PRODUCTS_HALF;
-
   /* ─── CALC: kučera flip ─── */
   const kf = useMemo(() => {
     const bronislavShare = Math.round(
       (buyPrice - MORTGAGE_BALANCE_SJM) / 2
     );
-    const vlastimilShare = bronislavShare;
     const cashOutOfPocket = bronislavShare;
 
     /* Proper declining-balance amortization */
@@ -223,25 +217,10 @@ export default function Page() {
     /* Kučera's total real running costs (what he actually pays out monthly) */
     const totalRunningCosts = monthlyTotal * monthsToSell;
 
-    /* Revenue */
-    let houseRevenue: number,
-      plotRevenue: number,
-      rkTotal: number,
-      prepCost: number;
-    if (plotSplit) {
-      houseRevenue = houseAsIs;
-      plotRevenue = plotSize * plotPriceM2;
-      rkTotal = Math.round(
-        (houseRevenue + plotRevenue) * (rkPct / 100)
-      );
-      prepCost = plotPrep;
-    } else {
-      houseRevenue = houseAsIsNoSplit;
-      plotRevenue = 0;
-      rkTotal = Math.round(houseRevenue * (rkPct / 100));
-      prepCost = 0;
-    }
-    const netRevenue = houseRevenue + plotRevenue - rkTotal - prepCost;
+    /* Revenue — always selling as whole (plot split removed — zone 14c = garden, no building allowed) */
+    const houseRevenue = houseAsIsNoSplit;
+    const rkTotal = Math.round(houseRevenue * (rkPct / 100));
+    const netRevenue = houseRevenue - rkTotal;
 
     /* Available after mortgage payoff */
     const availableFromSale = netRevenue - mortgageRemaining;
@@ -278,7 +257,6 @@ export default function Page() {
 
     return {
       bronislavShare,
-      vlastimilShare,
       cashOutOfPocket,
       firstMonthInterest,
       firstMonthPrincipal,
@@ -289,9 +267,7 @@ export default function Page() {
       totalPrincipal,
       mortgageRemaining,
       houseRevenue,
-      plotRevenue,
       rkTotal,
-      prepCost,
       netRevenue,
       availableFromSale,
       energyCostTotal,
@@ -308,23 +284,35 @@ export default function Page() {
     };
   }, [
     buyPrice,
-    houseAsIs,
     houseAsIsNoSplit,
-    plotSplit,
-    plotPriceM2,
-    plotSize,
     monthsToSell,
     kuceraInterestRate,
     kuceraProfit,
     rkPct,
-    plotPrep,
     energy,
   ]);
 
   const diff = kf.vlastimilTotal - vTotal;
   const diffPerMonth =
     diff !== 0 ? Math.round(diff / monthsToSell) : 0;
-  const plotRemainder = PLOT_TOTAL - plotSize;
+
+  /* ─── CALC: court scenario ─── */
+  const courtHalfHouse = Math.round(courtHouseValue / 2);
+  const courtHalfMortgage = Math.round(MORTGAGE_BALANCE_SJM / 2);
+  const courtClaimFromHouse = courtHalfHouse - courtHalfMortgage;
+  const courtMonthlyCost = Math.round(MORTGAGE_PAYMENT_SJM / 2 + energy + courtLawyerMonthly);
+  const courtTotalCost = courtMonthlyCost * courtMonths;
+  const courtProducts = PRODUCTS_HALF;
+  const courtNet = courtClaimFromHouse + courtProducts - courtTotalCost;
+
+  /* Bronislava at court */
+  const courtBronislavaFromHouse = courtClaimFromHouse; // same half
+  const courtBronislavaTotal = courtBronislavaFromHouse + courtProducts - courtTotalCost;
+
+  /* ─── STATE: Bronislava interactive sale price ─── */
+  const [bronislavaSalePrice, setBronislavaSalePrice] = useState(9_000_000);
+  const bronislavaFromHouse = bronislavaSalePrice - MORTGAGE_BALANCE_SJM - vClaim;
+  const bronislavaTotal = bronislavaFromHouse + PRODUCTS_HALF;
 
   /* ═══════════════════════ RENDER ═══════════════════════ */
   return (
@@ -375,10 +363,13 @@ export default function Page() {
             hodnotě {fmt(PRODUCTS_TOTAL)} Kč.
           </p>
           <p>
-            <strong className="text-white">Pozemek:</strong> Pozemek pod domem
-            a zahrada (celkem {fmt(PLOT_TOTAL)} m²) jsou výlučným vlastnictvím
-            Vlastimila. V rámci smírného řešení se Vlastimil vzdává tohoto
+            <strong className="text-white">Pozemek (ústupek):</strong> Pozemek pod domem
+            a zahrada (celkem {fmt(PLOT_TOTAL)} m², parcely 2036/16 a 2036/233) jsou výlučným vlastnictvím
+            Vlastimila &mdash; nespadají do SJM. U soudu by se oceňoval &bdquo;dům na cizím pozemku&ldquo;,
+            což výrazně snižuje jeho tržní hodnotu. V rámci smírného řešení se Vlastimil vzdává tohoto
             zvýhodnění a pozemek vkládá do SJM pro účely vypořádání.
+            Dle územního plánu Vacenovic je zadní část pozemku v zóně <strong>14c &mdash; Zahrady</strong> (nepřípustná
+            zástavba), proto nelze pozemek rozdělit na stavební parcelu. Prodává se vždy jako celek.
           </p>
           <p>
             <strong className="text-white">Technický stav:</strong> Zpráva
@@ -480,46 +471,16 @@ export default function Page() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
           <Slider label="Kupní cena" value={buyPrice} min={6_500_000} max={9_000_000} step={250_000} onChange={setBuyPrice} accent="#3b82f6" />
+          <Slider label="Prodejní cena (dům + pozemek)" value={houseAsIsNoSplit} min={5_000_000} max={10_000_000} step={250_000} onChange={setHouseAsIsNoSplit} accent="#3b82f6" />
           <Slider label="Měsíce do prodeje" value={monthsToSell} min={3} max={24} step={1} onChange={setMonthsToSell} suffix="m" accent="#3b82f6" />
           <Slider label="Úrok Kučerovi (na cash)" value={kuceraInterestRate} min={0} max={10} step={0.5} onChange={setKuceraInterestRate} suffix="%" accent="#3b82f6" />
           <Slider label="Kučerův podíl na zisku" value={kuceraProfit} min={0} max={30} step={5} onChange={setKuceraProfit} suffix="%" accent="#3b82f6" />
           <Slider label="RK provize" value={rkPct} min={0} max={5} step={0.5} onChange={setRkPct} suffix="%" accent="#3b82f6" />
-          <Slider label="Energie měsíčně" value={energy} min={5_000} max={15_000} step={1_000} onChange={setEnergy} accent="#3b82f6" />
         </div>
-
-        {/* Plot split toggle */}
-        <div className="mt-5 pt-4 border-t border-surface-700">
-          <div className="flex items-center gap-2 mb-3">
-            <button
-              onClick={() => setPlotSplit(true)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${plotSplit ? "bg-flip/15 border-flip/50 text-blue-300" : "bg-surface-800 border-surface-700 text-slate-500 hover:text-slate-300"}`}
-            >
-              Pozemek se podaří rozdělit
-            </button>
-            <button
-              onClick={() => setPlotSplit(false)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${!plotSplit ? "bg-danger/15 border-danger/50 text-red-300" : "bg-surface-800 border-surface-700 text-slate-500 hover:text-slate-300"}`}
-            >
-              Pozemek se nepodaří rozdělit
-            </button>
-          </div>
-          {plotSplit ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-              <Slider label={`Dům as-is (${fmt(plotRemainder)} m² pozemku)`} value={houseAsIs} min={4_000_000} max={8_000_000} step={250_000} onChange={setHouseAsIs} accent="#3b82f6" />
-              <Slider label="Parcela Kč/m²" value={plotPriceM2} min={1_000} max={3_000} step={100} onChange={setPlotPriceM2} suffix="Kč/m²" accent="#3b82f6" />
-              <Slider label="Parcela velikost" value={plotSize} min={1_000} max={2_000} step={100} onChange={setPlotSize} suffix="m2" accent="#3b82f6" />
-              <Slider label="Příprava parcely" value={plotPrep} min={100_000} max={500_000} step={50_000} onChange={setPlotPrep} accent="#3b82f6" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Slider label="Dům + celý pozemek as-is" value={houseAsIsNoSplit} min={5_000_000} max={10_000_000} step={250_000} onChange={setHouseAsIsNoSplit} accent="#3b82f6" />
-              <div className="bg-danger/10 border border-danger/20 rounded-lg p-3 flex items-center">
-                <span className="text-xs text-red-300">
-                  Prodej celku &mdash; dům + {fmt(PLOT_TOTAL)} m² bez oddělení parcely
-                </span>
-              </div>
-            </div>
-          )}
+        <div className="mt-3 bg-surface-800 rounded-lg p-3 flex items-center gap-2">
+          <span className="text-xs text-slate-400">
+            ⚠️ Pozemek nelze rozdělit &mdash; zahrada (zóna 14c ÚP) nepřipouští zástavbu. Prodává se vždy celý komplex dům + {fmt(PLOT_TOTAL)} m².
+          </span>
         </div>
       </section>
 
@@ -577,17 +538,11 @@ export default function Page() {
             </div>
             <div>
               <div className="text-[0.7rem] font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Příjmy z prodeje {plotSplit ? "(split pozemku)" : "(celý s domem)"}
+                Příjmy z prodeje (dům + celý pozemek)
               </div>
               <div className="space-y-0.5">
-                <Row label={plotSplit ? `Dům as-is (${fmt(plotRemainder)} m²)` : "Dům + celý pozemek"} value={`${fmt(kf.houseRevenue)} Kč`} color="text-green-400" />
-                {plotSplit && (
-                  <Row label={`Parcela (${fmt(plotSize)} m² × ${fmt(plotPriceM2)})`} value={`${fmt(kf.plotRevenue)} Kč`} color="text-green-400" />
-                )}
+                <Row label="Dům + celý pozemek" value={`${fmt(kf.houseRevenue)} Kč`} color="text-green-400" />
                 <Row label={`RK ${rkPct} %`} value={`−${fmt(kf.rkTotal)} Kč`} color="text-red-400" />
-                {plotSplit && kf.prepCost > 0 && (
-                  <Row label="Příprava parcely" value={`−${fmt(kf.prepCost)} Kč`} color="text-red-400" />
-                )}
                 <Row label="Čistý příjem" value={`${fmt(kf.netRevenue)} Kč`} color="text-green-400" bold border />
               </div>
             </div>
@@ -740,7 +695,7 @@ export default function Page() {
                   <div className="text-[0.6rem] text-slate-500 font-sans">po prodeji</div>
                 </td>
                 <td className="text-center py-2.5 px-3 text-flip">{fmt(kf.vlastimilFromFlip)}</td>
-                <td className="text-center py-2.5 px-3 text-slate-500">?</td>
+                <td className="text-center py-2.5 px-3 text-red-400">{fmt(courtClaimFromHouse)}</td>
               </tr>
               <tr className="border-b border-surface-800">
                 <td className="py-2.5 px-4 text-slate-400 font-sans">Finanční produkty</td>
@@ -751,6 +706,26 @@ export default function Page() {
                 <td className="text-center py-2.5 px-3">{fmt(PRODUCTS_HALF)}</td>
                 <td className="text-center py-2.5 px-3">{fmt(PRODUCTS_HALF)}</td>
               </tr>
+              <tr className="border-b border-surface-800">
+                <td className="py-2.5 px-4 text-slate-400 font-sans">Pozemek (ústupek)</td>
+                <td className="text-center py-2.5 px-3 text-amber-400 font-sans text-[0.75rem]">
+                  vložen do SJM
+                  <div className="text-[0.6rem] text-slate-500">výlučný majetek → vzdáváš se</div>
+                </td>
+                <td className="text-center py-2.5 px-3 text-amber-400 font-sans text-[0.75rem]">
+                  v ceně domu
+                </td>
+                <td className="text-center py-2.5 px-3 text-green-400 font-sans text-[0.75rem]">
+                  NECHÁVÁŠ SI
+                  <div className="text-[0.6rem] text-slate-500">dům na cizím pozemku</div>
+                </td>
+              </tr>
+              <tr className="border-b border-surface-800">
+                <td className="py-2.5 px-4 text-slate-400 font-sans">Náklady za dobu trvání</td>
+                <td className="text-center py-2.5 px-3 text-vysv font-bold font-sans">0 Kč</td>
+                <td className="text-center py-2.5 px-3 text-amber-400 font-sans">{fmt(kf.monthlyTotal * monthsToSell)}</td>
+                <td className="text-center py-2.5 px-3 text-red-400 font-sans">{fmt(courtTotalCost)}</td>
+              </tr>
               <tr className="border-b border-surface-800 bg-surface-800/40">
                 <td className="py-2.5 px-4 text-white font-sans font-bold">Celkem v ruce</td>
                 <td className="text-center py-2.5 px-3 text-vysv font-bold text-base">
@@ -759,35 +734,21 @@ export default function Page() {
                 <td className="text-center py-2.5 px-3 text-flip font-bold text-base">
                   {fmt(kf.vlastimilTotal)}
                 </td>
-                <td className="text-center py-2.5 px-3 text-slate-500">?</td>
+                <td className="text-center py-2.5 px-3 text-red-400 font-bold text-base">
+                  {fmt(courtNet)}
+                </td>
               </tr>
               <tr className="border-b border-surface-800">
                 <td className="py-2.5 px-4 text-slate-400 font-sans">Měsíční náklady</td>
                 <td className="text-center py-2.5 px-3 text-vysv font-bold font-sans">0 Kč</td>
                 <td className="text-center py-2.5 px-3 text-amber-400 font-sans">{fmt(kf.monthlyTotal)}/měs.</td>
-                <td className="text-center py-2.5 px-3 text-red-400 font-sans">~{fmt(MORTGAGE_PAYMENT_SJM / 2 + energy)}/měs.</td>
+                <td className="text-center py-2.5 px-3 text-red-400 font-sans">{fmt(courtMonthlyCost)}/měs.</td>
               </tr>
               <tr className="border-b border-surface-800">
                 <td className="py-2.5 px-4 text-slate-400 font-sans">Čas</td>
                 <td className="text-center py-2.5 px-3 text-vysv font-sans">Měsíce (prodej Br.)</td>
                 <td className="text-center py-2.5 px-3 text-amber-400 font-sans">{monthsToSell} měs.</td>
-                <td className="text-center py-2.5 px-3 text-red-400 font-sans">1&ndash;4 roky</td>
-              </tr>
-              <tr className="border-b border-surface-800">
-                <td className="py-2.5 px-4 text-slate-400 font-sans">Kučera investice</td>
-                <td className="text-center py-2.5 px-3 text-slate-500 font-sans">&mdash;</td>
-                <td className="text-center py-2.5 px-3 text-amber-400 font-sans text-[0.8rem]">
-                  {fmtK(kf.cashOutOfPocket)} cash + {fmtK(MORTGAGE_BALANCE_KUCERA)} hypo
-                </td>
-                <td className="text-center py-2.5 px-3 text-slate-500 font-sans">&mdash;</td>
-              </tr>
-              <tr className="border-b border-surface-800">
-                <td className="py-2.5 px-4 text-slate-400 font-sans">Kučera zisk</td>
-                <td className="text-center py-2.5 px-3 text-slate-500">&mdash;</td>
-                <td className={`text-center py-2.5 px-3 ${kf.kuceraShare > 0 ? "text-green-400" : "text-red-400"}`}>
-                  {fmt(kf.kuceraShare)}
-                </td>
-                <td className="text-center py-2.5 px-3 text-slate-500">&mdash;</td>
+                <td className="text-center py-2.5 px-3 text-red-400 font-sans">{courtMonths} měs.</td>
               </tr>
               <tr>
                 <td className="py-2.5 px-4 text-slate-400 font-sans">Riziko</td>
@@ -856,67 +817,81 @@ export default function Page() {
         )}
       </section>
 
-      {/* ═══ BRONISLAVA PERSPECTIVE ═══ */}
+      {/* ═══ COURT SCENARIO PARAMS ═══ */}
+      <section className="card mb-5" style={{ borderColor: "var(--color-danger-dim)" }}>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-2 h-2 rounded-full bg-danger" />
+          <h2 className="text-sm font-semibold text-red-400 uppercase tracking-wider">
+            Soud &mdash; parametry
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+          <Slider label="Znalecký odhad domu (na cizím pozemku)" value={courtHouseValue} min={4_000_000} max={8_000_000} step={250_000} onChange={setCourtHouseValue} accent="#ef4444" />
+          <Slider label="Délka soudu" value={courtMonths} min={12} max={48} step={3} onChange={setCourtMonths} suffix="m" accent="#ef4444" />
+          <Slider label="Právnička měsíčně" value={courtLawyerMonthly} min={3_000} max={15_000} step={1_000} onChange={setCourtLawyerMonthly} accent="#ef4444" />
+        </div>
+        <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat label="½ domu − ½ hypotéky" value={`${fmt(courtClaimFromHouse)} Kč`} color={courtClaimFromHouse >= 0 ? "text-green-400" : "text-red-400"} sub={`½ × ${fmtK(courtHouseValue)} − ½ × ${fmtK(MORTGAGE_BALANCE_SJM)}`} />
+          <Stat label={`Náklady (${courtMonths} měs.)`} value={`−${fmt(courtTotalCost)} Kč`} color="text-red-400" sub={`${fmt(courtMonthlyCost)}/měs. (½ hypo + energie + právník)`} />
+          <Stat label="Produkty" value={`${fmt(courtProducts)} Kč`} color="text-slate-300" />
+          <Stat label="Čistá pozice" value={`${fmt(courtNet)} Kč`} color={courtNet >= 0 ? "text-green-400" : "text-red-400"} sub="Ale pozemek ti zůstane" />
+        </div>
+        <p className="text-[0.75rem] text-slate-500 mt-3">
+          U soudu se oceňuje <strong className="text-slate-300">dům na cizím pozemku</strong> (tvůj pozemek nespadá do SJM).
+          Znalec ocení stavbu výrazně níž než celý komplex. Pozemek ti zůstane &mdash; ale je pod domem (zamčené aktivum).
+          Hypotéka je dle judikatury společný dluh 50/50. Soud trvá 1&ndash;4 roky, celou dobu platíš.
+        </p>
+      </section>
+
+      {/* ═══ BRONISLAVA PERSPECTIVE — INTERACTIVE ═══ */}
       <section className="card mb-5" style={{ borderColor: "var(--color-surface-600)" }}>
         <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
-          Pohled Bronislavy &mdash; proč vysvobození přijme
+          Pohled Bronislavy &mdash; co dostane při Vysvobození
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-surface-800 rounded-lg p-3">
-            <div className="text-[0.7rem] text-slate-400 mb-1">
-              Pokud prodá za 9 mil.
-            </div>
-            <div className="text-lg font-bold text-green-400 font-mono">
-              {fmt(9_000_000 - MORTGAGE_BALANCE_SJM - vClaim)} Kč
-            </div>
-            <div className="text-[0.65rem] text-slate-500">
-              z domu + {fmt(PRODUCTS_HALF)} produkty
-            </div>
-            <div className="text-[0.7rem] text-slate-400 font-medium mt-1">
-              Celkem {fmt(vBronislava9)} Kč
-            </div>
-          </div>
-          <div className="bg-surface-800 rounded-lg p-3">
-            <div className="text-[0.7rem] text-slate-400 mb-1">
-              Pokud prodá za 12 mil.
-            </div>
-            <div className="text-lg font-bold text-green-400 font-mono">
-              {fmt(12_000_000 - MORTGAGE_BALANCE_SJM - vClaim)} Kč
-            </div>
-            <div className="text-[0.65rem] text-slate-500">
-              z domu + {fmt(PRODUCTS_HALF)} produkty
-            </div>
-            <div className="text-[0.7rem] text-slate-400 font-medium mt-1">
-              Celkem {fmt(vBronislava12)} Kč
-            </div>
-          </div>
-          <div className="bg-surface-800 rounded-lg p-3">
-            <div className="text-[0.7rem] text-slate-400 mb-1">
-              Ona požadovala celkem
-            </div>
-            <div className="text-lg font-bold text-warn font-mono">
-              4 181 243 Kč
-            </div>
-            <div className="text-[0.65rem] text-slate-500">
-              (z přípisu AK Mandilas, 25. 2. 2026)
-            </div>
-            <div className="text-[0.7rem] text-slate-400 mt-1">
-              {vBronislava9 >= 4_181_243 ? (
-                <span className="text-green-400">
-                  Při 9 mil. prodejní ceně dostane víc
-                </span>
-              ) : (
-                <span className="text-amber-400">
-                  Potřebuje prodat za min. ~{fmtK(MORTGAGE_BALANCE_SJM + vClaim + (4_181_243 - PRODUCTS_HALF))} Kč
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="mb-4">
+          <Slider label="Prodejní cena domu (Bronislava prodává)" value={bronislavaSalePrice} min={6_000_000} max={12_000_000} step={250_000} onChange={setBronislavaSalePrice} accent="#a855f7" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat label="Z domu (po hypo + tvůj nárok)" value={`${fmt(bronislavaFromHouse)} Kč`} color={bronislavaFromHouse >= 0 ? "text-green-400" : "text-red-400"} sub={`${fmtK(bronislavaSalePrice)} − ${fmtK(MORTGAGE_BALANCE_SJM)} hypo − ${fmtK(vClaim)} tvůj nárok`} />
+          <Stat label="Finanční produkty" value={`${fmt(PRODUCTS_HALF)} Kč`} color="text-slate-300" sub="½ z celkových produktů" />
+          <Stat label="Bronislava CELKEM" value={`${fmt(bronislavaTotal)} Kč`} color="text-green-400" sub={bronislavaTotal >= 4_181_243 ? "✓ Víc než požadovala (4,18 mil)" : `Méně než požadovala (4,18 mil) — potřebuje prodat dráž`} />
+          <Stat label="Ona požadovala" value="4 181 243 Kč" color="text-warn" sub="Přípis AK Mandilas, 25. 2. 2026" />
+        </div>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[0.7rem] text-slate-400 uppercase border-b border-surface-700">
+                <th className="text-left py-2 px-3">Prodá za</th>
+                <th className="text-center py-2 px-3">Z domu</th>
+                <th className="text-center py-2 px-3">+ produkty</th>
+                <th className="text-center py-2 px-3">Celkem</th>
+                <th className="text-center py-2 px-3">vs. požadavek</th>
+              </tr>
+            </thead>
+            <tbody className="font-mono text-[0.8rem]">
+              {[7_000_000, 8_000_000, 9_000_000, 10_000_000, 12_000_000].map((price) => {
+                const fromHouse = price - MORTGAGE_BALANCE_SJM - vClaim;
+                const total = fromHouse + PRODUCTS_HALF;
+                const diff2 = total - 4_181_243;
+                return (
+                  <tr key={price} className={`border-b border-surface-800 ${price === bronislavaSalePrice ? "bg-surface-800/50" : ""}`}>
+                    <td className="py-2 px-3 text-slate-300 font-sans">{fmtK(price)}</td>
+                    <td className="text-center py-2 px-3 text-green-400">{fmt(fromHouse)}</td>
+                    <td className="text-center py-2 px-3 text-slate-400">{fmt(PRODUCTS_HALF)}</td>
+                    <td className="text-center py-2 px-3 text-white font-bold">{fmt(total)}</td>
+                    <td className={`text-center py-2 px-3 ${diff2 >= 0 ? "text-green-400" : "text-red-400"}`}>
+                      {diff2 >= 0 ? "+" : ""}{fmt(diff2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
         <p className="text-[0.75rem] text-slate-500 mt-3">
           Vysvobození je pro Bronislavu výhodné: ponechá si hypotéku se sazbou{" "}
           {MORTGAGE_RATE_SJM} % (fixace do konce 2027), má čas prodat za vlastní cenu,
-          a vše nad tvůj fixní nárok je její. Čím víc prodá, tím víc vydělá.
+          a vše nad tvůj fixní nárok je její. <strong className="text-slate-300">Čím víc věří, že dům má vyšší hodnotu, tím víc by měla chtít vysvobození.</strong>
         </p>
       </section>
 
